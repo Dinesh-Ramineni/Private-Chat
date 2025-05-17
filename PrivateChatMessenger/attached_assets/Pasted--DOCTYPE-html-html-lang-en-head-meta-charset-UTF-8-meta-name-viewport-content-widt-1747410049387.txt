@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Private Chat & Call App</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap');
+  body {
+    margin: 0;
+    font-family: 'Inter', sans-serif;
+    background: linear-gradient(135deg, #1a1a2e, #16213e);
+    color: #eeeeee;
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+  }
+  header {
+    text-align: center;
+    padding: 1rem;
+    background: #0f3460;
+    font-weight: 600;
+    font-size: 1.5rem;
+    color: #f5f5f5;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.25);
+  }
+  main {
+    flex: 1;
+    display: flex;
+    flex-direction: row;
+    gap: 1rem;
+    padding: 1rem;
+  }
+  #leftPanel, #rightPanel {
+    background: #16213e;
+    border-radius: 12px;
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+  }
+  #leftPanel {
+    flex: 0 0 320px;
+    max-width: 320px;
+  }
+  #rightPanel {
+    flex: 1;
+    max-width: calc(100% - 340px);
+  }
+  label {
+    font-weight: 600;
+    margin-top: 0.5rem;
+  }
+  input, textarea, select, button {
+    margin-top: 0.3rem;
+    border-radius: 6px;
+    border: none;
+    padding: 0.5rem;
+    font-size: 1rem;
+    font-family: inherit;
+  }
+  input, textarea {
+    width: 100%;
+    box-sizing: border-box;
+  }
+  button {
+    cursor: pointer;
+    background: #e94560;
+    color: #fff;
+    font-weight: 700;
+    transition: background 0.3s ease;
+  }
+  button:disabled {
+    background: #555;
+    cursor: not-allowed;
+  }
+  button:hover:not(:disabled) {
+    background: #d7375f;
+  }
+  #signalArea {
+    height: 120px;
+    font-family: monospace;
+  }
+  #chatArea {
+    flex: 1;
+    background: #0f3460;
+    border-radius: 12px;
+    padding: 1rem;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  .message {
+    padding: 0.6rem 1rem;
+    border-radius: 12px;
+    max-width: 80%;
+    word-wrap: break-word;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+  }
+  .message.own {
+    background: #e94560;
+    align-self: flex-end;
+    color: white;
+  }
+  .message.peer {
+    background: #1abc9c;
+    align-self: flex-start;
+    color: #0b3d3a;
+  }
+  .message .time {
+    font-size: 0.75rem;
+    opacity: 0.7;
+    margin-top: 0.3rem;
+    text-align: right;
+  }
+  #chatInputArea {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+  }
+  #chatInput {
+    flex: 1;
+    border-radius: 12px;
+    padding: 0.75rem 1rem;
+    font-size: 1rem;
+    resize: none;
+    height: 3rem;
+  }
+  #mediaInput {
+    display: none;
+  }
+  #callButtons {
+    margin-top: 1rem;
+    display: flex;
+    gap: 0.5rem;
+    justify-content: center;
+  }
+  #localVideo, #remoteVideo {
+    width: 100%;
+    max-height: 250px;
+    border-radius: 12px;
+    background: black;
+  }
+  .videoContainer {
+    display: flex;
+    gap: 1rem;
+    margin-top: 1rem;
+  }
+  .videoWrapper {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  .videoLabel {
+    margin-top: 0.5rem;
+    font-weight: 600;
+    font-size: 0.9rem;
+  }
+  .filePreview {
+    max-width: 150px;
+    max-height: 150px;
+    border-radius: 12px;
+    margin-top: 0.3rem;
+  }
+  #statusBar {
+    height: 1.5rem;
+    font-size: 0.9rem;
+    margin-top: 0.5rem;
+    color: #ff8c8c;
+    text-align: center;
+  }
+</style>
+</head>
+<body>
+<header>Private Chat & Call App</header>
+<main>
+  <section id="leftPanel">
+    <label for="roomIdInput">Room ID (shared secret):</label>
+    <input type="text" id="roomIdInput" placeholder="Enter room ID" autocomplete="off" />
+    <button id="createRoomBtn">Create Room (Offer)</button>
+    <button id="joinRoomBtn">Join Room (Answer)</button>
+
+    <label for="offerInput">Offer / Answer (SDP):</label>
+    <textarea id="signalArea" placeholder="Paste Offer or Answer here"></textarea>
+    <button id="processSignalBtn">Process Signal</button>
+    <button id="copySignalBtn">Copy Signal to Clipboard</button>
+
+    <div id="statusBar"></div>
+
+    <div id="callButtons" style="margin-top: 1rem;">
+      <button id="startCallBtn" disabled>Start Call (Audio/Video)</button>
+      <button id="hangupCallBtn" disabled>Hang Up</button>
+    </div>
+  </section>
+
+  <section id="rightPanel">
+    <div id="chatArea"></div>
+    <div id="chatInputArea">
+      <textarea id="chatInput" placeholder="Type a message..." rows="2"></textarea>
+      <button id="sendMsgBtn" disabled>Send</button>
+      <label for="mediaInput" style="align-self:center; cursor: pointer; color: #1abc9c; font-weight: bold; user-select:none;">📎</label>
+      <input type="file" id="mediaInput" accept="image/*,audio/*,video/*" />
+    </div>
+
+    <div class="videoContainer">
+      <div class="videoWrapper">
+        <video id="localVideo" autoplay muted playsinline></video>
+        <div class="videoLabel">Local Video</div>
+      </div>
+      <div class="videoWrapper">
+        <video id="remoteVideo" autoplay playsinline></video>
+        <div class="videoLabel">Remote Video</div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<script>
+  // Globals
+  let localConnection;
+  let remoteConnection;
+  let dataChannel;
+  let isCaller = false;
+  let localStream;
+  let remoteStream;
+  let peerConnection;
+  let chatArea = document.getElementById('chatArea');
+  let statusBar = document.getElementById('statusBar');
+  let roomIdInput = document.getElementById('roomIdInput');
+  let signalArea = document.getElementById('signalArea');
+
+  // Buttons & inputs
+  const createRoomBtn = document.getElementById('createRoomBtn');
+  const joinRoomBtn = document.getElementById('joinRoomBtn');
+  const processSignalBtn = document.getElementById('processSignalBtn');
+  const copySignalBtn = document.getElementById('copySignalBtn');
+  const startCallBtn = document.getElementById('startCallBtn');
+  const hangupCallBtn = document.getElementById('hangupCallBtn');
+  const chatInput = document.getElementById('chatInput');
+  const sendMsgBtn = document.getElementById('sendMsgBtn');
+  const mediaInput = document.getElementById('mediaInput');
+
+  // ICE Servers
+  const iceServers = {
+    iceServers: [
+      {urls: 'stun:stun.l.google.com:19302'},
+      {urls: 'stun:stun1.l.google.com:19302'}
+    ]
+  };
+
+  // Logging and status update helpers
+  function logStatus(msg) {
+    statusBar.textContent = msg;
+  }
+  function appendMessage(text, type = 'own', mediaElement = null) {
+    const msgDiv = document.createElement('div');
+    msgDiv.classList.add('message', type);
+    if (mediaElement) {
+      msgDiv.appendChild(mediaElement);
+    } else {
+      msgDiv.textContent = text;
+    }
+    const timeSpan = document.createElement('div');
+    timeSpan.classList.add('time');
+    const now = new Date();
+    timeSpan.textContent = now.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+    msgDiv.appendChild(timeSpan);
+    chatArea.appendChild(msgDiv);
+    chatArea.scrollTop = chatArea.scrollHeight;
+  }
+
+  // Setup connection for caller (create offer)
+  async function createRoom() {
+    if (!roomIdInput.value.trim()) {
+      alert('Please enter a room ID.');
+      return;
+    }
+    isCaller = true;
+    setupPeerConnection();
+
+    dataChannel = peerConnection.createDataChannel('chat');
+    setupDataChannel(dataChannel);
+
+    logStatus('Creating offer...');
+    const offer = await peerConnection.createOffer();
+    await peerConnection.setLocalDescription(offer);
+
+    signalArea.value = JSON.stringify(peerConnection.localDescription);
+    logStatus('Offer created. Share this SDP with your friend and paste their answer below.');
+    startCallBtn.disabled = false;
+    joinRoomBtn.disabled = true;
+    createRoomBtn.disabled = true;
+    sendMsgBtn.disabled = true;
+  }
+
+  // Setup connection for answerer (join room)
+  async function joinRoom() {
+    if (!roomIdInput.value.trim()) {
+      alert('Please enter a room ID.');
+      return;
+    }
+    isCaller = false;
+    setupPeerConnection();
+    logStatus('Paste the offer SDP in the box and click "Process Signal" to connect.');
+    createRoomBtn.disabled = true;
+    joinRoomBtn.disabled = true;
+    sendMsgBtn.disabled = true;
+    startCallBtn.disabled = true;
+  }
+
+  // Setup RTCPeerConnection events and handlers
+  function setupPeerConnection() {
+    peerConnection = new RTCPeerConnection(iceServers);
+
+    peerConnection.onicecandidate = event => {
+      if (event.candidate) {
+        // We do not automatically send ICE candidates, rely on full SDP exchange
+      }
+    };
+
+    peerConnection.ondatachannel = event => {
+      dataChannel = event.channel;
+      setupDataChannel(dataChannel);
+    };
+
+    peerConnection.ontrack = event => {
+      if (!remoteStream) {
+        remoteStream = new MediaStream();
+        document.getElementById('remoteVideo').srcObject = remoteStream;
+      }
+      remoteStream.addTrack(event.track);
+    };
+
+    peerConnection.onconnectionstatechange = () => {
+      if (peerConnection.connectionState === 'connected') {
+        logStatus('Peers connected.');
+        sendMsgBtn.disabled = false;
+        startCallBtn.disabled = false;
+      } else if (peerConnection.connectionState === 'disconnected' || peerConnection.connectionState === 'failed' || peerConnection.connectionState === 'closed') {
+        logStatus('Disconnected.');
+        sendMsgBtn.disabled = true;
+        startCallBtn.disabled = true;
+        hangupCallBtn.disabled = true;
+      }
+    };
+  }
+
+  // Handle the signaling data pasted by the user
+  async function processSignal() {
+    const sig = signalArea.value.trim();
+    if (!sig) {
+      alert('Please paste the SDP offer or answer.');
+      return;
+    }
+
+    let signal;
+    try {
+      signal = JSON.parse(sig);
+    } catch(e) {
+      alert('Invalid SDP JSON.');
+      return;
+    }
+    if (!peerConnection) {
+      alert('Please create or join a room first.');
+      return;
+    }
+
+    if (signal.type === 'offer') {
+      logStatus('Offer received, setting remote description and creating answer...');
+      await peerConnection.setRemoteDescription(new RTCSessionDescription(signal));
+      const answer = await peerConnection.createAnswer();
+      await peerConnection.setLocalDescription(answer);
+      signalArea.value = JSON.stringify(peerConnection.localDescription);
+      logStatus('Answer created. Share this SDP with your friend.');
+      sendMsgBtn.disabled = true;
+      startCallBtn.disabled = false;
+    } else if (signal.type === 'answer') {
+      logStatus('Answer received, setting remote description...');
+      await peerConnection.setRemoteDescription(new RTCSessionDescription(signal));
+      logStatus('Connection established.');
+      sendMsgBtn.disabled = false;
+      startCallBtn.disabled = false;
+    } else {
+      alert('SDP type not supported.');
+    }
+  }
+
+  // Setup data channel event handlers
+  function setupDataChannel(channel) {
+    channel.onopen = () => {
+      logStatus('Data channel open. You can chat now.');
+      sendMsgBtn.disabled = false;
+    };
+    channel.onclose = () => {
+      logStatus('Data channel closed.');
+      sendMsgBtn.disabled = true;
+    };
+    channel.onmessage = event => {
+      try {
+        let data = event.data;
+        // Try parse if JSON for media data
+        if (data.startsWith('{')) {
+          let obj = JSON.parse(data);
+          if (obj.type === 'text') {
+            appendMessage(obj.content, 'peer');
+          } else if (obj.type === 'file') {
+            displayReceivedFile(obj);
+          }
+        } else {
+          appendMessage(data, 'peer');
+        }
+      } catch {
+        appendMessage(event.data, 'peer');
+      }
+    };
+  }
+
+  // Send chat message over data channel
+  function sendMessage() {
+    if (!dataChannel || dataChannel.readyState !== 'open') {
+      alert('Data channel is not open');
+      return;
+    }
+    let msg = chatInput.value.trim();
+    if (!msg) return;
+    dataChannel.send(JSON.stringify({type: 'text', content: msg}));
+    appendMessage(msg, 'own');
+    chatInput.value = '';
+  }
+
+  // Handle file input change - send file as ArrayBuffer over data channel (split if needed)
+  mediaInput.addEventListener('change', async () => {
+    if (!dataChannel || dataChannel.readyState !== 'open') {
+      alert('Data channel is not open');
+      mediaInput.value = '';
+      return;
+    }
+    const file = mediaInput.files[0];
+    if (!file) return;
+
+    // Read file as data URL (to send small files inline)
+    const reader = new FileReader();
+    reader.onload = () => {
+      const base64Data = reader.result;
+      const fileMsg = {
+        type: 'file',
+        fileName: file.name,
+        fileType: file.type,
+        fileData: base64Data
+      };
+      dataChannel.send(JSON.stringify(fileMsg));
+      displaySentFile(fileMsg);
+      mediaInput.value = '';
+    };
+    reader.readAsDataURL(file);
+  });
+
+  // Display received file media in chat area
+  function displayReceivedFile(fileObj) {
+    let media;
+    if (fileObj.fileType.startsWith('image/')) {
+      media = document.createElement('img');
+      media.src = fileObj.fileData;
+      media.classList.add('filePreview');
+    } else if (fileObj.fileType.startsWith('audio/')) {
+      media = document.createElement('audio');
+      media.controls = true;
+      media.src = fileObj.fileData;
+      media.classList.add('filePreview');
+    } else if (fileObj.fileType.startsWith('video/')) {
+      media = document.createElement('video');
+      media.controls = true;
+      media.src = fileObj.fileData;
+      media.classList.add('filePreview');
+    } else {
+      media = document.createElement('a');
+      media.href = fileObj.fileData;
+      media.textContent = fileObj.fileName;
+      media.download = fileObj.fileName;
+      media.classList.add('filePreview');
+    }
+    appendMessage('', 'peer', media);
+  }
+
+  // Display sent file media in chat area as confirmation
+  function displaySentFile(fileObj) {
+    let media;
+    if (fileObj.fileType.startsWith('image/')) {
+      media = document.createElement('img');
+      media.src = fileObj.fileData;
+      media.classList.add('filePreview');
+    } else if (fileObj.fileType.startsWith('audio/')) {
+      media = document.createElement('audio');
+      media.controls = true;
+      media.src = fileObj.fileData;
+      media.classList.add('filePreview');
+    } else if (fileObj.fileType.startsWith('video/')) {
+      media = document.createElement('video');
+      media.controls = true;
+      media.src = fileObj.fileData;
+      media.classList.add('filePreview');
+    } else {
+      media = document.createElement('a');
+      media.href = fileObj.fileData;
+      media.textContent = fileObj.fileName;
+      media.download = fileObj.fileName;
+      media.classList.add('filePreview');
+    }
+    appendMessage('', 'own', media);
+  }
+
+  // Start the audio/video call by getting user media and adding tracks
+  async function startCall() {
+    if (!peerConnection) {
+      alert('Connection not established yet.');
+      return;
+    }
+    try {
+      localStream = await navigator.mediaDevices.getUserMedia({audio: true, video: true});
+      document.getElementById('localVideo').srcObject = localStream;
+
+      localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
+
+      startCallBtn.disabled = true;
+      hangupCallBtn.disabled = false;
+      logStatus('Call started. Streaming your media.');
+    } catch (err) {
+      alert('Could not access camera/microphone: ' + err.message);
+    }
+  }
+
+  // Hang up the call: stop streams and close peer connection
+  function hangUpCall() {
+    if (localStream) {
+      localStream.getTracks().forEach(track => track.stop());
+      document.getElementById('localVideo').srcObject = null;
+    }
+    if (remoteStream) {
+      remoteStream.getTracks().forEach(track => track.stop());
+      document.getElementById('remoteVideo').srcObject = null;
+      remoteStream = null;
+    }
+    if (peerConnection) {
+      peerConnection.close();
+      peerConnection = null;
+    }
+    dataChannel = null;
+    startCallBtn.disabled = true;
+    hangupCallBtn.disabled = true;
+    sendMsgBtn.disabled = true;
+    logStatus('Call ended.');
+  }
+
+  // Attach event listeners to buttons
+  createRoomBtn.addEventListener('click', createRoom);
+  joinRoomBtn.addEventListener('click', joinRoom);
+  processSignalBtn.addEventListener('click', processSignal);
+  copySignalBtn.addEventListener('click', () => {
+    signalArea.select();
+    document.execCommand('copy');
+  });
+  sendMsgBtn.addEventListener('click', sendMessage);
+  chatInput.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage();
+    }
+  });
+  startCallBtn.addEventListener('click', startCall);
+  hangupCallBtn.addEventListener('click', hangUpCall);
+
+  // Disable context menu on chat area for simplicity
+  chatArea.addEventListener('contextmenu', e => e.preventDefault());
+</script>
+</body>
+</html>
+

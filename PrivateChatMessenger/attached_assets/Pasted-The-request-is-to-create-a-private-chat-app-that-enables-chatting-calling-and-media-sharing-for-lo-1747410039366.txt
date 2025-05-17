@@ -1,0 +1,37 @@
+The request is to create a private chat app that enables chatting, calling, and media sharing for loved ones. The app should not be well-known or public, implying a small, secure, and private user base.
+
+Since the user requests a private chat app with chat, calls, and media sharing, this would usually require backend services, user authentication, real-time communication (e.g., WebRTC for calls), and file/media sharing capability. But by default, I focus on frontend only, unless explicitly asked for backend.
+
+Given the constraints and default instructions to keep it frontend-only unless requested otherwise, I can create a frontend-only prototype for a private chat app that has:
+
+    Private user interface for 1-to-1 chat with media sharing capabilities (done on client side, storing messages locally)
+    Audio/video call simulation using WebRTC and browser APIs
+    All in a single HTML file with inline CSS and JavaScript
+
+Since real backend user authentication and network communication are out of scope unless specifically requested, I'll build a prototype single page app that lets two users on the same network (or locally) connect via peer-to-peer connection using WebRTC for calls and data channels for chat and media sharing.
+
+The app will:
+
+    Use WebRTC to establish direct connection for call & chat
+    Let users enter a shared "room" code to connect
+    Enable text chat with media attachments (images, audio, video)
+    Enable audio/video calls peer-to-peer
+
+This matches the request for private chat app for loved ones. It won't be a known public platform but a tool to directly connect. This is a modern, visually appealing single HTML file with inline CSS and JS.
+
+Plan:
+
+    Single HTML file app with UI to enter room ID to connect peers
+    Use WebRTC peer connection with DataChannel for text chat and media transfers
+    WebRTC audio/video call using getUserMedia streams
+    Chat messages with timestamps and ability to send images and small media files
+    Modern design, dark theme or soft colors, nice fonts, responsive layout
+    Self-contained, runs fully in browser, no backend needed for signaling? Signaling is required but can be done using WebRTC manual signaling (copy-paste offers and answers) or via WebSocket (usually).
+
+Since no backend is requested, I'll implement manual signaling by copy-pasting offer and answer SDP messages to establish connection.
+
+This is a common lightweight P2P approach requiring no backend, preserving privacy.
+
+I will proceed to build this single HTML file for private P2P chat with calls and media sharing using manual SDP signaling.
+
+private-chat-app.html
